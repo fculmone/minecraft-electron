@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom SVG icon colors */
+.icon-blue {
+  filter: invert(13%) sepia(94%) saturate(6500%) hue-rotate(240deg)
+    brightness(95%) contrast(105%);
+}
+
+.icon-green {
+  filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(86deg)
+    brightness(118%) contrast(119%);
+}
+
+.icon-purple {
+  filter: invert(19%) sepia(98%) saturate(7420%) hue-rotate(270deg)
+    brightness(94%) contrast(108%);
+}
+
+.icon-red {
+  filter: invert(16%) sepia(100%) saturate(7420%) hue-rotate(0deg)
+    brightness(103%) contrast(105%);
+}
+
+.icon-orange {
+  filter: invert(43%) sepia(93%) saturate(2000%) hue-rotate(15deg)
+    brightness(103%) contrast(107%);
+}
+
+.icon-black {
+  filter: none;
+}
+
+.icon-white {
+  filter: invert(1);
+}
+
+/* Theme-aware icon inversion for DaisyUI */
+[data-theme='night'] .dark\:invert {
+  filter: invert(1);
+}
+
+/* Custom title bar styles */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
