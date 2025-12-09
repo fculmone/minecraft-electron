@@ -33,7 +33,7 @@ export default function App() {
         <div className="flex flex-1 overflow-hidden">
           <Drawer>
             <div className="h-full overflow-y-auto flex-1">
-              <main className="container mx-auto p-4 pt-12 flex-1">
+              <main className="container mx-auto p-4 pt-12 flex-1 h-full max-h-screen">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/logs" element={<Logs />} />

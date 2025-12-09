@@ -10,8 +10,8 @@ export default function SettingsHeader({
   saving,
 }: SettingsHeaderProps) {
   return (
-    <div className="flex-shrink-0 bg-base-100 border-b border-base-300 p-4">
-      <div className="max-w-6xl mx-auto flex items-baseline gap-4 ">
+    <div className="flex-shrink-0 bg-base-100 border-b border-base-300 py-4">
+      <div className="max-w-6xl mx-auto flex h-full items-center justify-start">
         <button
           type="button"
           className="btn btn-primary gap-2"

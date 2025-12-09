@@ -3,6 +3,7 @@ import { McServer } from '@main/minecraftServers/java';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ServerPropertiesPanel from './pages/settings/ServerSettings';
+import Console from './pages/console/Console';
 import Header from './components/Header';
 
 declare global {
@@ -21,6 +22,7 @@ export default function ViewServer() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
+  const [isServerRunning, setIsServerRunning] = useState(false);
   const { id } = useParams<{ id: string }>();
 
   useEffect(() => {
@@ -29,12 +31,14 @@ export default function ViewServer() {
     async function loadData() {
       try {
         setLoading(true);
-        const [serverData, propsData] = await Promise.all([
+        const [serverData, propsData, runningStatus] = await Promise.all([
           window.mc.getServer(id!),
           window.mc.getServerProperties(id!),
+          window.mc.getRunningStatus(),
         ]);
         setServer(serverData);
         setProperties(propsData);
+        setIsServerRunning(runningStatus[id] ?? false);
       } catch (error) {
         console.error('Error loading server data:', error);
       } finally {
@@ -43,6 +47,26 @@ export default function ViewServer() {
     }
 
     loadData();
+  }, [id]);
+
+  // Listen for server status changes
+  useEffect(() => {
+    const handleStatusChange = (data: {
+      id: string;
+      status: 'starting' | 'ready' | 'stopped' | 'error';
+      message?: string;
+    }) => {
+      if (data.id === id) {
+        setIsServerRunning(data.status === 'ready');
+      }
+    };
+
+    window.mc.onStatus(handleStatusChange);
+
+    return () => {
+      // Note: onStatus doesn't return an unsubscribe function in the current API
+      // This cleanup is a placeholder for future implementation
+    };
   }, [id]);
 
   const handleStartRename = () => {
@@ -81,7 +105,7 @@ export default function ViewServer() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 h-full">
       <Header
         server={server}
         isRenaming={isRenaming}
@@ -147,8 +171,8 @@ export default function ViewServer() {
         </div>
       )}
       {activeTab === 'console' && (
-        <div className="bg-base-100 border-base-300 p-6 rounded-lg">
-          Console content
+        <div className="bg-base-100 border-base-300 p-6 rounded-lg flex flex-col flex-1 mb-16 max-h-[600px]">
+          <Console isServerRunning={isServerRunning} />
         </div>
       )}
     </div>
