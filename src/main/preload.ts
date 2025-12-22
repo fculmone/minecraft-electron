@@ -72,6 +72,24 @@ const mcHandler = {
   cmd: (id: string, cmd: string) => ipcRenderer.invoke('java:cmd', { id, cmd }),
   stop: (id: string) => ipcRenderer.invoke('java:stop', { id }),
   getRunningStatus: () => ipcRenderer.invoke('java:getRunningStatus'),
+  // Backups
+  getBackupSettings: (id: string) =>
+    ipcRenderer.invoke('java:getBackupSettings', { id }),
+  setBackupSettings: (
+    id: string,
+    settings: {
+      enabled: boolean;
+      onStart: boolean;
+      maxBackups: number;
+      frequencyMinutes: number;
+    },
+  ) => ipcRenderer.invoke('java:setBackupSettings', { id, settings }),
+  listBackups: (id: string) => ipcRenderer.invoke('java:listBackups', { id }),
+  createBackup: (id: string) => ipcRenderer.invoke('java:createBackup', { id }),
+  deleteBackup: (id: string, backupId: string) =>
+    ipcRenderer.invoke('java:deleteBackup', { id, backupId }),
+  restoreBackup: (id: string, backupId: string) =>
+    ipcRenderer.invoke('java:restoreBackup', { id, backupId }),
   onLog: (
     cb: (d: { id: string; line: string; stream: 'stdout' | 'stderr' }) => void,
   ) =>

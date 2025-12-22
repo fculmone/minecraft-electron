@@ -24,6 +24,206 @@ export type McServer = {
 const ROOT = path.join(app.getPath('userData'), 'minecraft');
 const INDEX = path.join(ROOT, 'index.json');
 const running = new Map<string, ChildProcessWithoutNullStreams>();
+const backupTimers = new Map<string, NodeJS.Timeout>();
+
+type BackupSettings = {
+  enabled: boolean;
+  onStart: boolean;
+  maxBackups: number;
+  frequencyMinutes: number;
+};
+
+async function getBackupSettings(id: string): Promise<BackupSettings> {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Not found');
+  const cfgPath = path.join(srv.dir, 'backups.json');
+  try {
+    const raw = await fs.readFile(cfgPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: !!parsed.enabled,
+      onStart: !!parsed.onStart,
+      maxBackups: Number(parsed.maxBackups) || 10,
+      frequencyMinutes: Number(parsed.frequencyMinutes) || 60,
+    };
+  } catch {
+    return {
+      enabled: false,
+      onStart: false,
+      maxBackups: 10,
+      frequencyMinutes: 60,
+    };
+  }
+}
+
+async function saveBackupSettings(id: string, s: BackupSettings) {
+  const list = await loadIndex();
+  const srv = list.find((x) => x.id === id);
+  if (!srv) throw new Error('Not found');
+  await ensure(srv.dir);
+  await fs.writeFile(
+    path.join(srv.dir, 'backups.json'),
+    JSON.stringify(s, null, 2),
+    'utf8',
+  );
+}
+
+async function listBackups(id: string) {
+  const list = await loadIndex();
+  const srv = list.find((x) => x.id === id);
+  if (!srv) throw new Error('Not found');
+  const bdir = path.join(srv.dir, 'backups');
+  await ensure(bdir);
+  const entries = await fs.readdir(bdir).catch(() => []);
+  return entries
+    .filter(
+      (e) =>
+        e.endsWith('.zip') || fssync.statSync(path.join(bdir, e)).isDirectory(),
+    )
+    .map((name) => ({
+      id: name,
+      path: path.join(bdir, name),
+      timestamp:
+        Number(name.split('_')[0]) ||
+        fssync.statSync(path.join(bdir, name)).mtimeMs,
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+async function copyDir(src: string, dest: string) {
+  await ensure(dest);
+  try {
+    const entries = await fs.readdir(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const s = path.join(src, entry.name);
+      const d = path.join(dest, entry.name);
+      try {
+        if (entry.isDirectory()) {
+          await copyDir(s, d);
+        } else {
+          await fs.copyFile(s, d);
+        }
+      } catch (err: any) {
+        // Skip files that are locked or inaccessible
+        if (
+          err.code === 'EBUSY' ||
+          err.code === 'EPERM' ||
+          err.code === 'EACCES'
+        ) {
+          console.warn(`Skipping locked/inaccessible file: ${s}`);
+          continue;
+        }
+        throw err;
+      }
+    }
+  } catch (err: any) {
+    if (err.code === 'ENOENT') {
+      console.warn(`Source directory does not exist: ${src}`);
+      return;
+    }
+    throw err;
+  }
+}
+
+async function createBackup(id: string) {
+  const list = await loadIndex();
+  const srv = list.find((x) => x.id === id);
+  if (!srv) throw new Error('Not found');
+  const worldDir = path.join(srv.dir, 'world');
+  const backupsDir = path.join(srv.dir, 'backups');
+  await ensure(backupsDir);
+  const stamp = Date.now();
+  const dest = path.join(backupsDir, `${stamp}_world`);
+
+  // If server is running, use save commands to ensure world is flushed
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    // Flush all pending changes to disk
+    proc.stdin.write('save-all flush\n');
+    // Wait a bit for save to complete
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+
+  await copyDir(worldDir, dest);
+
+  // enforce max count
+  const settings = await getBackupSettings(id);
+  const items = await listBackups(id);
+  if (items.length > settings.maxBackups) {
+    const toDelete = items.slice(settings.maxBackups);
+    for (const item of toDelete) {
+      await fs.rm(item.path, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+  return { ok: true, path: dest };
+}
+
+async function deleteBackup(id: string, backupId: string) {
+  const list = await loadIndex();
+  const srv = list.find((x) => x.id === id);
+  if (!srv) throw new Error('Not found');
+  const backupsDir = path.join(srv.dir, 'backups');
+  const target = path.join(backupsDir, backupId);
+  await fs.rm(target, { recursive: true, force: true });
+  return { ok: true };
+}
+
+async function restoreBackup(id: string, backupId: string) {
+  const list = await loadIndex();
+  const srv = list.find((x) => x.id === id);
+  if (!srv) throw new Error('Not found');
+
+  // Server must be stopped to restore
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    throw new Error('Server must be stopped before restoring a backup');
+  }
+
+  const backupsDir = path.join(srv.dir, 'backups');
+  const source = path.join(backupsDir, backupId);
+  const worldDir = path.join(srv.dir, 'world');
+
+  // Remove existing world
+  await fs.rm(worldDir, { recursive: true, force: true }).catch(() => {});
+
+  // Copy backup to world directory
+  await copyDir(source, worldDir);
+
+  return { ok: true };
+}
+
+function scheduleBackups(id: string, settings: BackupSettings) {
+  const existing = backupTimers.get(id);
+  if (existing) {
+    clearInterval(existing);
+    backupTimers.delete(id);
+  }
+  if (!settings.enabled) return;
+
+  // Only schedule if server is actually running
+  const proc = running.get(id);
+  if (!proc || proc.exitCode !== null) {
+    console.log(`Not scheduling backups for ${id} - server not running`);
+    return;
+  }
+
+  const ms = Math.max(1, settings.frequencyMinutes) * 60 * 1000;
+  const t = setInterval(() => {
+    // Double-check server is still running before creating backup
+    const p = running.get(id);
+    if (!p || p.exitCode !== null) {
+      clearInterval(t);
+      backupTimers.delete(id);
+      return;
+    }
+    createBackup(id).catch((e) => console.error('backup failed', e));
+  }, ms);
+  backupTimers.set(id, t);
+  console.log(
+    `Scheduled backups for ${id} every ${settings.frequencyMinutes} minutes`,
+  );
+}
 
 function winFromSender(e: Electron.IpcMainInvokeEvent) {
   return BrowserWindow.fromWebContents(e.sender);
@@ -296,8 +496,18 @@ ipcMain.handle(
       for (const line of buf.toString('utf8').split(/\r?\n/)) {
         if (!line) continue;
         sendLog(win, { id: srv.id, line, stream });
-        if (line.includes('Done') && line.includes('For help'))
+        if (line.includes('Done') && line.includes('For help')) {
           sendStatus(win, { id: srv.id, status: 'ready' });
+          // Schedule backups and create initial backup only after server is ready
+          getBackupSettings(srv.id)
+            .then((s) => {
+              scheduleBackups(srv.id, s);
+              if (s.enabled && s.onStart) {
+                return createBackup(srv.id);
+              }
+            })
+            .catch((e) => console.warn('backup settings error', e));
+        }
       }
     };
     child.stdout.on('data', (b) => onChunk(b, 'stdout'));
@@ -310,6 +520,9 @@ ipcMain.handle(
         message: `Exited ${code}`,
       });
       running.delete(srv.id);
+      const t = backupTimers.get(srv.id);
+      if (t) clearInterval(t);
+      backupTimers.delete(srv.id);
     });
     child.on('error', (err) => {
       console.log('Spawn error:', err);
@@ -345,6 +558,46 @@ ipcMain.handle('java:getRunningStatus', async () => {
   }
   return runningServers;
 });
+
+// Backups API
+ipcMain.handle('java:getBackupSettings', async (_e, { id }: { id: string }) => {
+  return getBackupSettings(id);
+});
+
+ipcMain.handle(
+  'java:setBackupSettings',
+  async (_e, { id, settings }: { id: string; settings: BackupSettings }) => {
+    await saveBackupSettings(id, settings);
+    scheduleBackups(id, settings);
+    return { ok: true };
+  },
+);
+
+ipcMain.handle('java:listBackups', async (_e, { id }: { id: string }) => {
+  const items = await listBackups(id);
+  return items.map((i) => ({
+    id: path.basename(i.path),
+    timestamp: i.timestamp,
+  }));
+});
+
+ipcMain.handle('java:createBackup', async (_e, { id }: { id: string }) => {
+  return createBackup(id);
+});
+
+ipcMain.handle(
+  'java:deleteBackup',
+  async (_e, { id, backupId }: { id: string; backupId: string }) => {
+    return deleteBackup(id, backupId);
+  },
+);
+
+ipcMain.handle(
+  'java:restoreBackup',
+  async (_e, { id, backupId }: { id: string; backupId: string }) => {
+    return restoreBackup(id, backupId);
+  },
+);
 
 // Parse server.properties file into an object
 function parseServerProperties(content: string): Record<string, any> {

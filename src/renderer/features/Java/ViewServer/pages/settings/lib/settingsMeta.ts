@@ -34,6 +34,7 @@ export const TAB_FIELDS: Record<TabId, (keyof ServerProperties)[]> = {
     'spawn-protection',
     'white-list',
     'force-gamemode',
+    'server-port',
   ],
   world: [
     'generate-structures',
@@ -99,7 +100,6 @@ export const TAB_FIELDS: Record<TabId, (keyof ServerProperties)[]> = {
     'initial-disabled-packs',
     'initial-enabled-packs',
     'server-ip',
-    'server-port',
     'status-heartbeat-interval',
   ],
 };

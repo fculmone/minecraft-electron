@@ -5,6 +5,8 @@ import { useParams } from 'react-router-dom';
 import ServerPropertiesPanel from './pages/settings/ServerSettings';
 import Console from './pages/console/Console';
 import Header from './components/Header';
+import Backups from './pages/backups/Backups';
+import Players from './pages/players/Players';
 
 declare global {
   interface Window {
@@ -157,7 +159,7 @@ export default function ViewServer() {
       {/* Tab content */}
       {activeTab === 'players' && (
         <div className="bg-base-100 border-base-300 p-6 rounded-lg">
-          Players content
+          <Players isServerRunning={isServerRunning} />
         </div>
       )}
       {activeTab === 'settings' && (
@@ -167,7 +169,7 @@ export default function ViewServer() {
       )}
       {activeTab === 'backups' && (
         <div className="bg-base-100 border-base-300 p-6 rounded-lg">
-          Backups content
+          <Backups isServerRunning={isServerRunning} />
         </div>
       )}
       {activeTab === 'console' && (
