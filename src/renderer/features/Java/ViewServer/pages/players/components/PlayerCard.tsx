@@ -1,4 +1,4 @@
-import { FaShield, FaBan, FaTrash } from 'react-icons/fa';
+import { FaUserCheck, FaBan, FaTrash } from 'react-icons/fa';
 import type { Player } from '../types';
 
 interface PlayerCardProps {
@@ -47,10 +47,10 @@ export default function PlayerCard({
             <h3 className="font-bold text-lg">{player.username}</h3>
             <div className="flex items-center gap-2 mt-1">
               <div
-                className={`w-2 h-2 rounded-full ${isOnline ? 'bg-success' : 'bg-base-content/30'}`}
+                className={`w-2 h-2 rounded-full ${isOnline && isServerRunning ? 'bg-success' : 'bg-base-content/30'}`}
               />
               <span className="text-xs text-base-content/60">
-                {isOnline ? 'Online' : 'Offline'}
+                {isOnline && isServerRunning ? 'Online' : 'Offline'}
               </span>
             </div>
             {player.lastSeen && (
@@ -66,7 +66,7 @@ export default function PlayerCard({
         <div className="flex gap-2 mb-4 flex-wrap">
           {isWhitelisted && restrictionMode === 'whitelist' && (
             <span className="badge badge-success gap-1 text-xs">
-              <FaShield className="w-3 h-3" />
+              <FaUserCheck className="w-3 h-3" />
               Whitelisted
             </span>
           )}
@@ -90,7 +90,7 @@ export default function PlayerCard({
               title={isBanned ? 'Cannot whitelist banned players' : ''}
               type="button"
             >
-              <FaShield className="w-3 h-3" />
+              <FaUserCheck className="w-3 h-3" />
               {isWhitelisted ? 'Remove' : 'Whitelist'}
             </button>
           )}
@@ -115,12 +115,12 @@ export default function PlayerCard({
           </button>
         </div>
 
-        {/* Info */}
+        {/* Info
         {isServerRunning && (
           <p className="text-xs text-success mt-3 text-center">
             Commands will be executed on the server
           </p>
-        )}
+        )} */}
       </div>
     </div>
   );

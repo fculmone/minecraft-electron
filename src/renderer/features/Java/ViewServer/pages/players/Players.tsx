@@ -1,7 +1,7 @@
 import { MinecraftServerAPI } from '@renderer/preload';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { FaPlus, FaTrash, FaShield, FaBan } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaBan } from 'react-icons/fa';
 import { PlayerCard, AddPlayerModal } from './components';
 import type { Player } from './types';
 

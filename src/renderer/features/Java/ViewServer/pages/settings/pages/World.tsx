@@ -1,5 +1,5 @@
-import { TAB_FIELDS, PROPERTY_META } from '../lib/settingsMeta';
 import type { ServerProperties } from '@main/minecraftServers/javaTypes';
+import { TAB_FIELDS, PROPERTY_META } from '../lib/settingsMeta';
 import RenderPropertyInput from '../components/RenderPropertyInput';
 
 interface WorldProps {
