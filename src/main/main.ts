@@ -15,6 +15,7 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import { registerExeIPC } from './ipc/exeRunner';
+import { registerPlayerLookupIPC } from './ipc/playerLookup';
 import './minecraftServers/java';
 import './minecraftServers/bedrock';
 import {
@@ -111,6 +112,7 @@ const createWindow = async () => {
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
   registerExeIPC(mainWindow);
+  registerPlayerLookupIPC();
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {

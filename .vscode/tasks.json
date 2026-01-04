@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Dev (Renderer + Main with Inspect)",
+      "type": "shell",
+      "command": "npm",
+      "args": ["start"],
+      "isBackground": true,
+      "options": {
+        "env": {
+          "MAIN_ARGS": "--inspect=9229 --remote-debugging-port=8315"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": [
+        {
+          "owner": "custom",
+          "pattern": {
+            "regexp": ".^"
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "Starting Main Process",
+            "endsPattern": "Compiled successfully"
+          }
+        }
+      ]
+    }
+  ]
+}

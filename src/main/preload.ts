@@ -98,6 +98,27 @@ const mcHandler = {
       (_e: any, d: { id: string; line: string; stream: 'stdout' | 'stderr' }) =>
         cb(d),
     ),
+  onPlayerJoined: (
+    cb: (d: { id: string; username: string; timestamp: number }) => void,
+  ) =>
+    ipcRenderer.on(
+      'java:player-joined',
+      (_e: any, d: { id: string; username: string; timestamp: number }) =>
+        cb(d),
+    ),
+  onPlayerLeft: (
+    cb: (d: { id: string; username: string; timestamp: number }) => void,
+  ) =>
+    ipcRenderer.on(
+      'java:player-left',
+      (_e: any, d: { id: string; username: string; timestamp: number }) =>
+        cb(d),
+    ),
+  onOnlinePlayers: (cb: (d: { id: string; players: string[] }) => void) =>
+    ipcRenderer.on(
+      'java:online-players',
+      (_e: any, d: { id: string; players: string[] }) => cb(d),
+    ),
   onStatus: (
     cb: (d: {
       id: string;
@@ -116,6 +137,20 @@ const mcHandler = {
         },
       ) => cb(d),
     ),
+  getWhiteAndBlacklist: (id: string) =>
+    ipcRenderer.invoke('java:getWhiteAndBlacklist', { id }),
+  addPlayerToWhitelist: (id: string, player: { uuid: string; name: string }) =>
+    ipcRenderer.invoke('java:addPlayerToWhitelist', { id, player }),
+  removePlayerFromWhitelist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => ipcRenderer.invoke('java:removePlayerFromWhitelist', { id, player }),
+  addPlayerToBlacklist: (id: string, player: { uuid: string; name: string }) =>
+    ipcRenderer.invoke('java:addPlayerToBlacklist', { id, player }),
+  removePlayerFromBlacklist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => ipcRenderer.invoke('java:removePlayerFromBlacklist', { id, player }),
 };
 
 const bedrockHandler = {
@@ -159,10 +194,17 @@ const bedrockHandler = {
     ),
 };
 
+const playerHandler = {
+  fetchUUID: (username: string) =>
+    ipcRenderer.invoke('player:fetchUUID', username),
+};
+
 contextBridge.exposeInMainWorld('electron', electronHandler);
 contextBridge.exposeInMainWorld('exe', exeHandler);
 contextBridge.exposeInMainWorld('mc', mcHandler);
 contextBridge.exposeInMainWorld('bedrock', bedrockHandler);
+contextBridge.exposeInMainWorld('player', playerHandler);
 
 export type ElectronHandler = typeof electronHandler;
 export type ExeHandler = typeof exeHandler;
+export type PlayerHandler = typeof playerHandler;

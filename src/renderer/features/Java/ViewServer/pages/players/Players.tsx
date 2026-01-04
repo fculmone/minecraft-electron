@@ -8,6 +8,9 @@ import type { Player } from './types';
 declare global {
   interface Window {
     mc: MinecraftServerAPI;
+    player: {
+      fetchUUID: (username: string) => Promise<{ id?: string; error?: string }>;
+    };
   }
 }
 
@@ -30,12 +33,12 @@ export default function Players({ isServerRunning }: PlayersProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [restrictionMode, setRestrictionMode] = useState<
-    'none' | 'whitelist' | 'blacklist'
-  >('none');
+    'whitelist' | 'blacklist'
+  >('blacklist');
 
   const storageKey = id ? `players-${id}` : null;
 
-  // Load players from localStorage
+  // Load initial state
   useEffect(() => {
     if (!storageKey) return;
 
@@ -49,11 +52,43 @@ export default function Players({ isServerRunning }: PlayersProps) {
             lastSeen: p.lastSeen ? new Date(p.lastSeen) : undefined,
           })),
         );
-        setOnlinePlayers(new Set(data.onlinePlayers || []));
-        setWhitelistedPlayers(new Set(data.whitelistedPlayers || []));
-        setBannedPlayers(new Set(data.bannedPlayers || []));
-        setRestrictionMode(data.restrictionMode || 'none');
       }
+
+      window.mc.getWhiteAndBlacklist(id!).then(({ whitelist, blacklist }) => {
+        setWhitelistedPlayers(new Set(whitelist.map((p) => p.name)));
+        setBannedPlayers(new Set(blacklist.map((p) => p.name)));
+        whitelist.map((p) => {
+          const exists = players.some(
+            (pl) => pl.username.toLowerCase() === p.name.toLowerCase(),
+          );
+          if (!exists) {
+            setPlayers((prev) => [
+              ...prev,
+              { uuid: p.uuid, username: p.name, lastSeen: undefined },
+            ]);
+          }
+        });
+        blacklist.map((p) => {
+          const exists = players.some(
+            (pl) => pl.username.toLowerCase() === p.name.toLowerCase(),
+          );
+          if (!exists) {
+            setPlayers((prev) => [
+              ...prev,
+              { uuid: p.uuid, username: p.name, lastSeen: undefined },
+            ]);
+          }
+        });
+      });
+
+      window.mc.getServerProperties(id!).then((props) => {
+        if (props['white-list'] === true) {
+          setRestrictionMode('whitelist');
+        } else {
+          setRestrictionMode('blacklist');
+        }
+      });
+
       setLoading(false);
     } catch (error) {
       console.error('Error loading players:', error);
@@ -61,100 +96,127 @@ export default function Players({ isServerRunning }: PlayersProps) {
     }
   }, [storageKey]);
 
+  // Use Effect to update restriction mode in server properties
+  useEffect(() => {
+    if (!id) return;
+
+    window.mc.getServerProperties(id).then((props) => {
+      const updatedProps = {
+        ...props,
+        'white-list': restrictionMode === 'whitelist',
+      };
+      window.mc.saveServerProperties(id, updatedProps);
+    });
+  }, [restrictionMode, id]);
+
   // Save players to localStorage
   useEffect(() => {
-    if (!storageKey || players.length === 0) return;
+    if (!storageKey) return;
 
     try {
       localStorage.setItem(
         storageKey,
         JSON.stringify({
           players,
-          onlinePlayers: Array.from(onlinePlayers),
-          whitelistedPlayers: Array.from(whitelistedPlayers),
-          bannedPlayers: Array.from(bannedPlayers),
-          restrictionMode,
         }),
       );
+      window.mc.getWhiteAndBlacklist(id!).then(({ whitelist, blacklist }) => {
+        setWhitelistedPlayers(new Set(whitelist.map((p) => p.name)));
+        setBannedPlayers(new Set(blacklist.map((p) => p.name)));
+      });
     } catch (error) {
       console.error('Error saving players:', error);
     }
-  }, [
-    players,
-    onlinePlayers,
-    whitelistedPlayers,
-    bannedPlayers,
-    restrictionMode,
-    storageKey,
-  ]);
+  }, [players]);
 
-  // Listen for console logs to track online players
+  // Listen for player join/leave events and online players list
   useEffect(() => {
     if (!id) return;
 
-    let active = true;
+    // Clear online players when server stops
+    if (!isServerRunning) {
+      setOnlinePlayers(new Set());
+      return;
+    }
 
-    const handleLog = (data: {
+    // Request current online players when server starts
+    window.mc.cmd(id, 'list');
+
+    const handlePlayerJoined = async (data: {
       id: string;
-      line: string;
-      stream: 'stdout' | 'stderr';
+      username: string;
+      timestamp: number;
     }) => {
-      if (!active || data.id !== id || data.stream === 'stderr') return;
+      if (data.id !== id) return;
 
-      // Parse "Player joined" messages
-      const joinedMatch = data.line.match(
-        /\[.*?\]: (.+?)\[\/(.+?)\] logged in with entity id (\d+) at \((.*?)\)/,
-      );
-      if (joinedMatch) {
-        const username = joinedMatch[1];
-        setOnlinePlayers((prev) => new Set(prev).add(username));
+      setOnlinePlayers((prev) => new Set(prev).add(data.username));
 
-        // Add or update player
-        setPlayers((prev) => {
-          const existing = prev.find((p) => p.username === username);
-          if (existing) {
-            return prev.map((p) =>
-              p.username === username ? { ...p, lastSeen: new Date() } : p,
-            );
-          }
-          return [
-            ...prev,
-            {
-              uuid: '', // Will be empty until we get it from the list command
-              username,
-              lastSeen: new Date(),
-              isOnline: true,
-            },
-          ];
-        });
-      }
+      const playerUUID = await window.player.fetchUUID(data.username.trim());
+      console.log('Lookup result:', playerUUID);
 
-      // Parse "Player left" messages
-      const leftMatch = data.line.match(/\[.*?\]: (.+?) left the game/);
-      if (leftMatch) {
-        const username = leftMatch[1];
-        setOnlinePlayers((prev) => {
-          const next = new Set(prev);
-          next.delete(username);
-          return next;
-        });
-
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.username === username
-              ? { ...p, lastSeen: new Date(), isOnline: false }
-              : p,
-          ),
+      if (typeof playerUUID === 'object' && playerUUID.error) {
+        console.error(
+          `Error looking up UUID for ${data.username}: ${playerUUID.error}`,
         );
+        return;
       }
+      if (!playerUUID.id) {
+        console.error(`No UUID found for ${data.username}`);
+        return;
+      }
+
+      setPlayers((prev) => {
+        const existing = prev.find((p) => p.username === data.username);
+        if (existing) {
+          return prev.map((p) =>
+            p.username === data.username
+              ? { ...p, lastSeen: new Date(data.timestamp) }
+              : p,
+          );
+        }
+
+        return [
+          ...prev,
+          {
+            uuid: playerUUID.id || '',
+            username: data.username,
+            lastSeen: new Date(data.timestamp),
+          },
+        ];
+      });
     };
 
-    window.mc.onLog(handleLog);
+    const handlePlayerLeft = (data: {
+      id: string;
+      username: string;
+      timestamp: number;
+    }) => {
+      if (data.id !== id) return;
 
-    return () => {
-      active = false;
+      setOnlinePlayers((prev) => {
+        const next = new Set(prev);
+        next.delete(data.username);
+        return next;
+      });
+
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.username === data.username
+            ? { ...p, lastSeen: new Date(data.timestamp) }
+            : p,
+        ),
+      );
     };
-  }, [id]);
+
+    const handleOnlinePlayers = (data: { id: string; players: string[] }) => {
+      if (data.id !== id) return;
+      setOnlinePlayers(new Set(data.players));
+    };
+
+    window.mc.onPlayerJoined(handlePlayerJoined);
+    window.mc.onPlayerLeft(handlePlayerLeft);
+    window.mc.onOnlinePlayers(handleOnlinePlayers);
+  }, [id, isServerRunning]);
 
   const filteredPlayers = players.filter((player) => {
     let matches = true;
@@ -179,7 +241,14 @@ export default function Players({ isServerRunning }: PlayersProps) {
     return matches;
   });
 
-  const handleToggleWhitelist = (username: string) => {
+  const handleToggleWhitelist = (uuid: string, username: string) => {
+    const isCurrentlyWhitelisted = whitelistedPlayers.has(username);
+    console.log(
+      `Toggling whitelist for ${username} ${uuid}: currently ${
+        isCurrentlyWhitelisted ? 'whitelisted' : 'not whitelisted'
+      }`,
+    );
+
     setWhitelistedPlayers((prev) => {
       const next = new Set(prev);
       if (next.has(username)) {
@@ -190,17 +259,24 @@ export default function Players({ isServerRunning }: PlayersProps) {
       return next;
     });
 
-    // If server is running, execute command
-    if (isServerRunning && id) {
-      const isAdding = !whitelistedPlayers.has(username);
-      const command = isAdding
-        ? `whitelist add ${username}`
-        : `whitelist remove ${username}`;
-      window.mc.cmd(id, command);
+    // Update whitelist on server
+    if (id) {
+      if (isCurrentlyWhitelisted) {
+        window.mc.removePlayerFromWhitelist(id, { uuid, name: username });
+      } else {
+        window.mc.addPlayerToWhitelist(id, { uuid, name: username });
+      }
     }
   };
 
-  const handleToggleBan = (username: string) => {
+  const handleToggleBan = (uuid: string, username: string) => {
+    const isCurrentlyBanned = bannedPlayers.has(username);
+    console.log(
+      `Toggling ban for ${username} ${uuid}: currently ${
+        isCurrentlyBanned ? 'banned' : 'not banned'
+      }`,
+    );
+
     setBannedPlayers((prev) => {
       const next = new Set(prev);
       if (next.has(username)) {
@@ -211,11 +287,13 @@ export default function Players({ isServerRunning }: PlayersProps) {
       return next;
     });
 
-    // If server is running, execute command
-    if (isServerRunning && id) {
-      const isAdding = !bannedPlayers.has(username);
-      const command = isAdding ? `ban ${username}` : `pardon ${username}`;
-      window.mc.cmd(id, command);
+    // Update whitelist/blacklist on server
+    if (id) {
+      if (isCurrentlyBanned) {
+        window.mc.removePlayerFromBlacklist(id, { uuid, name: username });
+      } else {
+        window.mc.addPlayerToBlacklist(id, { uuid, name: username });
+      }
     }
   };
 
@@ -224,14 +302,7 @@ export default function Players({ isServerRunning }: PlayersProps) {
       (p) => p.username.toLowerCase() === username.toLowerCase(),
     );
 
-    if (existing) {
-      // Update existing player's UUID if needed
-      if (!existing.uuid) {
-        setPlayers((prev) =>
-          prev.map((p) => (p.username === username ? { ...p, uuid } : p)),
-        );
-      }
-    } else {
+    if (!existing) {
       // Add new player
       setPlayers((prev) => [
         ...prev,
@@ -246,7 +317,9 @@ export default function Players({ isServerRunning }: PlayersProps) {
     setShowAddModal(false);
   };
 
-  const handleRemovePlayer = (username: string) => {
+  const handleRemovePlayer = (uuid: string, username: string) => {
+    window.mc.removePlayerFromWhitelist(id!, { uuid, name: username });
+    window.mc.removePlayerFromBlacklist(id!, { uuid, name: username });
     setPlayers((prev) => prev.filter((p) => p.username !== username));
   };
 
@@ -282,17 +355,6 @@ export default function Players({ isServerRunning }: PlayersProps) {
           <span className="label-text font-medium">Player Access Control</span>
         </label>
         <div className="flex gap-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="restriction"
-              value="none"
-              checked={restrictionMode === 'none'}
-              onChange={() => setRestrictionMode('none')}
-              className="radio radio-sm"
-            />
-            <span className="text-sm">None</span>
-          </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
@@ -360,9 +422,15 @@ export default function Players({ isServerRunning }: PlayersProps) {
                 isOnline={onlinePlayers.has(player.username)}
                 isWhitelisted={whitelistedPlayers.has(player.username)}
                 isBanned={bannedPlayers.has(player.username)}
-                onToggleWhitelist={() => handleToggleWhitelist(player.username)}
-                onToggleBan={() => handleToggleBan(player.username)}
-                onRemove={() => handleRemovePlayer(player.username)}
+                onToggleWhitelist={() =>
+                  handleToggleWhitelist(player.uuid, player.username)
+                }
+                onToggleBan={() =>
+                  handleToggleBan(player.uuid, player.username)
+                }
+                onRemove={() =>
+                  handleRemovePlayer(player.uuid, player.username)
+                }
                 isServerRunning={isServerRunning}
                 restrictionMode={restrictionMode}
               />

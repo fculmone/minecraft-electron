@@ -1,4 +1,4 @@
-import { ElectronHandler, ExeHandler } from '../main/preload';
+import { ElectronHandler, ExeHandler, PlayerHandler } from '../main/preload';
 import type { ServerProperties } from '@main/minecraftServers/javaTypes';
 
 export type BedrockServer = {
@@ -42,6 +42,13 @@ export type MinecraftServerAPI = {
   onLog: (
     cb: (d: { id: string; line: string; stream: 'stdout' | 'stderr' }) => void,
   ) => void;
+  onPlayerJoined: (
+    cb: (d: { id: string; username: string; timestamp: number }) => void,
+  ) => void;
+  onPlayerLeft: (
+    cb: (d: { id: string; username: string; timestamp: number }) => void,
+  ) => void;
+  onOnlinePlayers: (cb: (d: { id: string; players: string[] }) => void) => void;
   onStatus: (
     cb: (d: {
       id: string;
@@ -49,6 +56,26 @@ export type MinecraftServerAPI = {
       message?: string;
     }) => void,
   ) => void;
+  getWhiteAndBlacklist: (id: string) => Promise<{
+    whitelist: { uuid: string; name: string }[];
+    blacklist: { uuid: string; name: string }[];
+  }>;
+  addPlayerToWhitelist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => Promise<void>;
+  removePlayerFromWhitelist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => Promise<void>;
+  addPlayerToBlacklist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => Promise<void>;
+  removePlayerFromBlacklist: (
+    id: string,
+    player: { uuid: string; name: string },
+  ) => Promise<void>;
 };
 
 export type BedrockServerAPI = {
@@ -72,6 +99,10 @@ export type BedrockServerAPI = {
   ) => void;
 };
 
+export type PlayerAPI = {
+  fetchUUID: (username: string) => Promise<{ id?: string; error?: string }>;
+};
+
 declare global {
   // eslint-disable-next-line no-unused-vars
   interface Window {
@@ -79,6 +110,7 @@ declare global {
     exe: ExeHandler;
     mc: MinecraftServerAPI;
     bedrock: BedrockServerAPI;
+    player: PlayerAPI;
   }
 }
 

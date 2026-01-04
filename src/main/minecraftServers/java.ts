@@ -319,6 +319,24 @@ function sendStatus(win: BrowserWindow | null | undefined, d: any) {
 function sendLog(win: BrowserWindow | null | undefined, d: any) {
   win?.webContents.send('java:log', d);
 }
+function sendPlayerJoined(
+  win: BrowserWindow | null | undefined,
+  d: { id: string; username: string; timestamp: number },
+) {
+  win?.webContents.send('java:player-joined', d);
+}
+function sendPlayerLeft(
+  win: BrowserWindow | null | undefined,
+  d: { id: string; username: string; timestamp: number },
+) {
+  win?.webContents.send('java:player-left', d);
+}
+function sendOnlinePlayers(
+  win: BrowserWindow | null | undefined,
+  d: { id: string; players: string[] },
+) {
+  win?.webContents.send('java:online-players', d);
+}
 
 ipcMain.handle('java:import', async () => {
   await ensure(ROOT);
@@ -496,6 +514,8 @@ ipcMain.handle(
       for (const line of buf.toString('utf8').split(/\r?\n/)) {
         if (!line) continue;
         sendLog(win, { id: srv.id, line, stream });
+
+        // Detect when server is ready
         if (line.includes('Done') && line.includes('For help')) {
           sendStatus(win, { id: srv.id, status: 'ready' });
           // Schedule backups and create initial backup only after server is ready
@@ -507,6 +527,42 @@ ipcMain.handle(
               }
             })
             .catch((e) => console.warn('backup settings error', e));
+        }
+
+        // Detect player joined
+        const joinedMatch = line.match(
+          /\[.*?\]: (.+?)\[\/(.+?)\] logged in with entity id (\d+) at \((.*?)\)/,
+        );
+        if (joinedMatch && stream === 'stdout') {
+          const username = joinedMatch[1].trim();
+          sendPlayerJoined(win, {
+            id: srv.id,
+            username,
+            timestamp: Date.now(),
+          });
+        }
+
+        // Detect player left
+        const leftMatch = line.match(/\[.*?\]: (.+?) left the game/);
+        if (leftMatch && stream === 'stdout') {
+          const username = leftMatch[1].trim();
+          sendPlayerLeft(win, {
+            id: srv.id,
+            username,
+            timestamp: Date.now(),
+          });
+        }
+
+        // Detect list command response
+        const listMatch = line.match(
+          /There are \d+(?:\/\d+)?(?: of a max of \d+)? players online:?\s*(.*)$/i,
+        );
+        if (listMatch && stream === 'stdout') {
+          const playerList = listMatch[1]
+            .split(',')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0);
+          sendOnlinePlayers(win, { id: srv.id, players: playerList });
         }
       }
     };
@@ -687,6 +743,222 @@ ipcMain.handle(
     }
   },
 );
+
+ipcMain.handle(
+  'java:getWhiteAndBlacklist',
+  async (_e, { id }: { id: string }) => {
+    return getWhitelistAndBannedPlayers(id);
+  },
+);
+
+ipcMain.handle(
+  'java:addPlayerToWhitelist',
+  async (
+    _e,
+    { id, player }: { id: string; player: { uuid: string; name: string } },
+  ) => {
+    return addPlayerToWhitelist(id, player);
+  },
+);
+
+ipcMain.handle(
+  'java:removePlayerFromWhitelist',
+  async (
+    _e,
+    { id, player }: { id: string; player: { uuid: string; name: string } },
+  ) => {
+    return removePlayerFromWhitelist(id, player);
+  },
+);
+
+ipcMain.handle(
+  'java:addPlayerToBlacklist',
+  async (
+    _e,
+    { id, player }: { id: string; player: { uuid: string; name: string } },
+  ) => {
+    return addPlayerToBlacklist(id, player);
+  },
+);
+
+ipcMain.handle(
+  'java:removePlayerFromBlacklist',
+  async (
+    _e,
+    { id, player }: { id: string; player: { uuid: string; name: string } },
+  ) => {
+    return removePlayerFromBlacklist(id, player);
+  },
+);
+
+// Get the players on whitelist.json and banned-players.json
+async function getWhitelistAndBannedPlayers(id: string) {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Server not found');
+  const whitelistPath = path.join(srv.dir, 'whitelist.json');
+  const bannedPath = path.join(srv.dir, 'banned-players.json');
+  let whitelist: any[] = [];
+  let blacklist: any[] = [];
+  try {
+    const wlContent = await fs.readFile(whitelistPath, 'utf8');
+    whitelist = JSON.parse(wlContent);
+  } catch {}
+  try {
+    const bannedContent = await fs.readFile(bannedPath, 'utf8');
+    blacklist = JSON.parse(bannedContent);
+    blacklist = blacklist.map(({ uuid, name }) => ({ uuid, name }));
+  } catch {}
+
+  return { whitelist, blacklist };
+}
+
+async function addPlayerToWhitelist(
+  id: string,
+  player: { uuid: string; name: string },
+) {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Server not found');
+
+  const whitelistPath = path.join(srv.dir, 'whitelist.json');
+
+  let whitelist: Array<{ uuid?: string; name?: string }> = [];
+  try {
+    const wlContent = await fs.readFile(whitelistPath, 'utf8');
+    const parsed = JSON.parse(wlContent);
+    if (Array.isArray(parsed)) whitelist = parsed;
+  } catch {}
+
+  const exists = whitelist.some(
+    (p) => p.uuid === player.uuid && p.name === player.name,
+  );
+
+  if (!exists) {
+    whitelist.push({ uuid: player.uuid, name: player.name });
+    await fs.writeFile(whitelistPath, JSON.stringify(whitelist, null, 2));
+  }
+
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    proc.stdin.write('whitelist reload\n');
+  }
+}
+
+async function removePlayerFromWhitelist(
+  id: string,
+  player: { uuid: string; name: string },
+) {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Server not found');
+
+  const whitelistPath = path.join(srv.dir, 'whitelist.json');
+
+  let whitelist: Array<{ uuid?: string; name?: string }> = [];
+  try {
+    const wlContent = await fs.readFile(whitelistPath, 'utf8');
+    const parsed = JSON.parse(wlContent);
+    if (Array.isArray(parsed)) whitelist = parsed;
+  } catch {}
+
+  const exists = whitelist.some(
+    (p) => p.uuid === player.uuid && p.name === player.name,
+  );
+
+  console.log(player, exists, whitelist);
+
+  if (exists) {
+    whitelist = whitelist.filter(
+      (p) => p.uuid !== player.uuid && p.name !== player.name,
+    );
+    await fs.writeFile(whitelistPath, JSON.stringify(whitelist, null, 2));
+  }
+
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    proc.stdin.write('whitelist reload\n');
+  }
+}
+
+function formatBanTimestamp(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hour = pad(d.getHours());
+  const minute = pad(d.getMinutes());
+  const second = pad(d.getSeconds());
+  const tzMinutes = -d.getTimezoneOffset();
+  const sign = tzMinutes >= 0 ? '+' : '-';
+  const tzHour = pad(Math.floor(Math.abs(tzMinutes) / 60));
+  const tzMin = pad(Math.abs(tzMinutes) % 60);
+  return `${year}-${month}-${day} ${hour}:${minute}:${second} ${sign}${tzHour}${tzMin}`;
+}
+
+async function addPlayerToBlacklist(
+  id: string,
+  player: { uuid: string; name: string },
+) {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Server not found');
+
+  const bannedPath = path.join(srv.dir, 'banned-players.json');
+  let whitelist: any[] = [];
+  let banned: any[] = [];
+
+  try {
+    const bannedContent = await fs.readFile(bannedPath, 'utf8');
+    banned = JSON.parse(bannedContent);
+  } catch {}
+  const exists = banned.some(
+    (p) => p.uuid === player.uuid && p.name === player.name,
+  );
+  if (!exists) {
+    banned.push({
+      uuid: player.uuid,
+      name: player.name,
+      created: formatBanTimestamp(),
+      source: 'Server',
+      expires: 'forever',
+    });
+    await fs.writeFile(bannedPath, JSON.stringify(banned, null, 2));
+  }
+
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    proc.stdin.write(`ban ${player.name}\n`);
+  }
+}
+
+async function removePlayerFromBlacklist(
+  id: string,
+  player: { uuid: string; name: string },
+) {
+  const list = await loadIndex();
+  const srv = list.find((s) => s.id === id);
+  if (!srv) throw new Error('Server not found');
+  const bannedPath = path.join(srv.dir, 'banned-players.json');
+  let banned: any[] = [];
+  try {
+    const bannedContent = await fs.readFile(bannedPath, 'utf8');
+    banned = JSON.parse(bannedContent);
+  } catch {}
+  const exists = banned.some(
+    (p) => p.uuid === player.uuid && p.name === player.name,
+  );
+  if (exists) {
+    banned = banned.filter(
+      (p) => p.uuid !== player.uuid && p.name !== player.name,
+    );
+    await fs.writeFile(bannedPath, JSON.stringify(banned, null, 2));
+  }
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    proc.stdin.write(`pardon ${player.name}\n`);
+  }
+}
 
 async function findJava(): Promise<string | null> {
   // Check JAVA_HOME environment variable

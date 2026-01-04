@@ -2,29 +2,32 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Electron: Main",
+      "name": "Attach: Electron Main",
       "type": "node",
-      "request": "launch",
-      "protocol": "inspector",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start"],
-      "env": {
-        "MAIN_ARGS": "--inspect=5858 --remote-debugging-port=9223"
-      }
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "timeout": 5000,
+      "preLaunchTask": "Start Dev (Renderer + Main with Inspect)",
+      "smartStep": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
     },
     {
-      "name": "Electron: Renderer",
+      "name": "Attach: Electron Renderer",
       "type": "chrome",
       "request": "attach",
-      "port": 9223,
-      "webRoot": "${workspaceFolder}",
-      "timeout": 15000
+      "address": "localhost",
+      "port": 8315,
+      "url": "http://localhost:1212",
+      "webRoot": "${workspaceFolder}/src/renderer",
+      "timeout": 5000,
+      "sourceMaps": true
     }
   ],
   "compounds": [
     {
-      "name": "Electron: All",
-      "configurations": ["Electron: Main", "Electron: Renderer"]
+      "name": "Debug: Main + Renderer",
+      "configurations": ["Attach: Electron Main", "Attach: Electron Renderer"]
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import type { Player } from '../types';
 
@@ -35,45 +35,24 @@ export default function AddPlayerModal({
       return;
     }
 
-    setLoading(true);
-    setError('');
-
-    try {
-      // Try the modern API first (api.ashcon.app)
-      const response = await fetch(
-        `https://api.ashcon.app/mojang/v2/user/${username}`,
-      );
-      if (!response.ok) {
-        throw new Error('not_found');
+    const result = await window.player.fetchUUID(username.trim());
+    if (typeof result === 'object' && result.error) {
+      if (result.error === 'not_found') {
+        setError(`Player "${username}" not found`);
+      } else {
+        setError('Network error. Please try again.');
       }
-
-      const data = await response.json();
-      // ashcon.app returns uuid without hyphens, format it properly
-      const formattedUuid = data.uuid;
-      setUuid(formattedUuid);
-    } catch (err) {
-      try {
-        // Fallback to legacy Mojang API
-        const fallbackResponse = await fetch(
-          `https://api.mojang.com/users/profiles/minecraft/${username}`,
-        );
-        if (!fallbackResponse.ok) {
-          throw new Error('not_found');
-        }
-
-        const fallbackData = await fallbackResponse.json();
-        setUuid(fallbackData.id);
-      } catch (fallbackErr) {
-        // More user-friendly error message
-        const errorMsg =
-          fallbackErr instanceof Error && fallbackErr.message === 'not_found'
-            ? `Could not find player "${username}". Please check the spelling and try again.`
-            : 'Unable to connect to Minecraft API. Please check your internet connection and try again.';
-        setError(errorMsg);
-      }
-    } finally {
       setLoading(false);
+      return;
     }
+    if (!result.id) {
+      setError('Unexpected error occurred. Please try again.');
+      setLoading(false);
+      return;
+    }
+    setUuid(result.id);
+    setLoading(false);
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -85,7 +64,7 @@ export default function AddPlayerModal({
     }
 
     if (!uuid.trim()) {
-      setError('Please fetch player UUID first');
+      setError('Please try again');
       return;
     }
 
@@ -102,7 +81,11 @@ export default function AddPlayerModal({
       <div className="modal-box w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-lg">Add Player</h3>
-          <button onClick={onClose} className="btn btn-sm btn-circle btn-ghost">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-sm btn-circle btn-ghost"
+          >
             <FaTimes />
           </button>
         </div>
@@ -110,15 +93,20 @@ export default function AddPlayerModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Username Input */}
           <div className="form-control">
-            <label className="label">
+            <div className="label">
               <span className="label-text">Minecraft Username</span>
-            </label>
+            </div>
             <div className="flex gap-2">
               <input
                 type="text"
                 placeholder="Enter username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !loading && username.trim()) {
+                    handleFetchProfile();
+                  }
+                }}
                 className="input input-bordered flex-1"
               />
               <button
@@ -127,7 +115,7 @@ export default function AddPlayerModal({
                 disabled={loading || !username.trim()}
                 className="btn btn-primary"
               >
-                {loading ? 'Fetching...' : 'Fetch'}
+                {loading ? 'Searching...' : 'Search'}
               </button>
             </div>
           </div>
@@ -141,7 +129,7 @@ export default function AddPlayerModal({
 
           {/* Success Preview */}
           {uuid && !error && (
-            <div className="alert alert-success">
+            <div className="alert alert-success flex text-left">
               <div className="flex items-center gap-3">
                 <img
                   src={`https://minotar.net/helm/${uuid}/64.png`}
