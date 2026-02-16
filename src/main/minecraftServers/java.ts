@@ -458,6 +458,24 @@ ipcMain.handle(
     const srv = list.find((s) => s.id === id);
     if (!srv) throw new Error('Not found');
 
+    const targetPort = opts?.port || srv.port || 25565;
+
+    // Check for port conflicts with other running servers
+    for (const runningId of running.keys()) {
+      if (runningId === id) continue; // Skip self
+      const runningServer = list.find((s) => s.id === runningId);
+      if (runningServer && runningServer.port === targetPort) {
+        const errorMsg = `Port ${targetPort} is already in use by server "${runningServer.name}".`;
+        console.log(errorMsg);
+        // Optionally, send a specific event to the renderer to show a toast
+        win?.webContents.send('java:show-toast', {
+          type: 'error',
+          message: errorMsg,
+        });
+        return { ok: false, error: errorMsg };
+      }
+    }
+
     // update saved options and set last started timestamp
     srv.xms = opts?.xms || srv.xms || '1G';
     srv.xmx = opts?.xmx || srv.xmx || '2G';

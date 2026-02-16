@@ -9,7 +9,10 @@ const electronHandler = {
     sendMessage(channel: Channels, ...args: unknown[]) {
       ipcRenderer.send(channel, ...args);
     },
-    on(channel: Channels, func: (...args: unknown[]) => void) {
+    on(
+      channel: Channels | 'java:show-toast',
+      func: (...args: unknown[]) => void,
+    ) {
       const subscription = (_event: any, ...args: any[]) => func(...args);
       ipcRenderer.on(channel, subscription);
 

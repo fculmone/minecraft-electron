@@ -34,15 +34,16 @@ export default function Header({
           className="btn btn-ghost btn-square"
           onClick={() => navigate('/java')}
           title="Back to servers"
+          type="button"
         >
           <FaArrowLeft className="size-5" />
         </button>
-        <div className="flex-1">
+        <div className="flex-1 mb">
           {isRenaming ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-1">
               <input
                 type="text"
-                className="input input-bordered text-xl font-bold h-10"
+                className="input input-bordered text-xl font-bold h-10 "
                 value={newName}
                 onChange={(e) => onNewNameChange(e.target.value)}
                 onKeyDown={onRenameKeyDown}

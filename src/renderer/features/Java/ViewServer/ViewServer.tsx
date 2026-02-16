@@ -164,7 +164,7 @@ export default function ViewServer() {
       )}
       {activeTab === 'settings' && (
         <div className="bg-base-100 border-base-300 p-6 rounded-lg">
-          <ServerPropertiesPanel />
+          <ServerPropertiesPanel isServerRunning={isServerRunning} />
         </div>
       )}
       {activeTab === 'backups' && (

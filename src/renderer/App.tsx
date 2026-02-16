@@ -1,4 +1,5 @@
 import { MemoryRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import icon from '../../assets/icon.svg';
 import './App.css';
 import Logs from './features/Logs';
@@ -8,6 +9,8 @@ import Drawer from './components/Drawer';
 import Dashboard from './features/Dashboard/Dashboard';
 import TitleBar from './components/TitleBar';
 import ServerPropertiesPanel from './features/Java/ViewServer/ViewServer';
+import ToastContainer from './components/ToastContainer';
+
 function Hello() {
   return (
     <div>
@@ -21,6 +24,9 @@ function Hello() {
         This is a test of Tailwind CSS and DaisyUI integration.
       </div>
       <button className="btn">Hello daisyUI</button>
+      <button type="button" className="btn btn-primary">
+        Show Test Toast
+      </button>
     </div>
   );
 }
@@ -29,6 +35,7 @@ export default function App() {
   return (
     <Router>
       <div className="flex flex-col h-screen">
+        <ToastContainer />
         <TitleBar />
         <div className="flex flex-1 overflow-hidden">
           <Drawer>

@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .tooltip-delay-1s:hover::before,
+  .tooltip-delay-1s:hover::after {
+    transition-delay: 1s;
+  }
+}
+
 /* Custom SVG icon colors */
 .icon-blue {
   filter: invert(13%) sepia(94%) saturate(6500%) hue-rotate(240deg)
@@ -48,4 +55,19 @@
 
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+@keyframes fadeInOut {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  2%,
+  90% {
+    opacity: 1;
+  }
+}
+
+.fade-in-out {
+  animation: fadeInOut 7s ease-in-out;
 }

@@ -142,61 +142,72 @@ const JavaServerTable = forwardRef<JavaServerTableRef>((props, ref) => {
               </td>
             </tr>
           ) : (
-            servers.map((server) => {
-              const serverStatus = status[server.id] || 'idle';
-              const isRunning =
-                serverStatus === 'running' ||
-                serverStatus === 'ready' ||
-                serverStatus === 'starting';
+            [...servers]
+              .sort((a, b) => {
+                // Sort by last started time (newest first), with never-started at bottom
+                const aTime = a.lastStartedAt
+                  ? new Date(a.lastStartedAt).getTime()
+                  : 0;
+                const bTime = b.lastStartedAt
+                  ? new Date(b.lastStartedAt).getTime()
+                  : 0;
+                return bTime - aTime;
+              })
+              .map((server) => {
+                const serverStatus = status[server.id] || 'idle';
+                const isRunning =
+                  serverStatus === 'running' ||
+                  serverStatus === 'ready' ||
+                  serverStatus === 'starting';
 
-              // Use local state first, then fall back to server data
-              const lastStarted =
-                lastStartedTimes[server.id] || server.lastStartedAt;
+                // Use local state first, then fall back to server data
+                const lastStarted =
+                  lastStartedTimes[server.id] || server.lastStartedAt;
 
-              return (
-                <tr key={server.id}>
-                  <td>{server.name}</td>
-                  <td>{server.version || 'Unknown'}</td>
-                  <td>
-                    <span
-                      className={`badge ${isRunning ? 'badge-success bg-opacity-30' : 'badge-ghost'} min-w-20`}
-                    >
-                      {serverStatus}
-                    </span>
-                  </td>
-                  <td>{server.port || 25565}</td>
-                  <td>{lastStarted ? formatDate(lastStarted) : 'Never'}</td>
-                  <td>
-                    <div className="flex gap-2">
-                      {isRunning ? (
-                        <button
-                          className="btn btn-error btn-square btn-sm"
-                          onClick={() => handleStop(server.id)}
-                          title="Stop Server"
-                        >
-                          <FaStop className="size-3 text-base-200" />
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-success btn-square btn-sm"
-                          onClick={() => handleStart(server.id)}
-                          title="Start Server"
-                        >
-                          <FaPlay className="size-3 text-base-200" />
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-info btn-square btn-sm"
-                        onClick={() => handleEdit(server.id)}
-                        title="Edit Server"
+                return (
+                  <tr key={server.id}>
+                    <td>{server.name}</td>
+                    <td>{server.version || 'Unknown'}</td>
+                    <td>
+                      <span
+                        className={`badge ${isRunning ? 'badge-success bg-opacity-30' : 'badge-ghost'} min-w-20`}
                       >
-                        <FaEdit className="size-3 text-base-200" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
+                        {serverStatus}
+                      </span>
+                    </td>
+                    <td>{server.port || 25565}</td>
+                    <td>{lastStarted ? formatDate(lastStarted) : 'Never'}</td>
+                    <td>
+                      <div className="flex gap-2">
+                        {isRunning ? (
+                          <button
+                            className="btn btn-error btn-square btn-sm"
+                            onClick={() => handleStop(server.id)}
+                            title="Stop Server"
+                          >
+                            <FaStop className="size-3 text-base-200" />
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-success btn-square btn-sm"
+                            onClick={() => handleStart(server.id)}
+                            title="Start Server"
+                          >
+                            <FaPlay className="size-3 text-base-200" />
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-info btn-square btn-sm"
+                          onClick={() => handleEdit(server.id)}
+                          title="Edit Server"
+                        >
+                          <FaEdit className="size-3 text-base-200" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
           )}
         </tbody>
       </table>

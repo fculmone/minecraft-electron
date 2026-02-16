@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MinecraftBlockIcon,
   CloudIcon,
@@ -9,6 +9,14 @@ import {
 } from '../icons/NavbarIcons';
 
 export default function Drawer({ children }: { children?: React.ReactNode }) {
+  const [isNight, setIsNight] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') ?? 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    setIsNight(savedTheme === 'night');
+  }, []);
+
   const closeDrawer = () => {
     const drawerToggle = document.getElementById(
       'my-drawer-3',
@@ -146,6 +154,16 @@ export default function Drawer({ children }: { children?: React.ReactNode }) {
                 type="checkbox"
                 className="theme-controller"
                 value="night"
+                checked={isNight}
+                onChange={(event) => {
+                  const nextTheme = event.target.checked ? 'night' : 'light';
+                  setIsNight(event.target.checked);
+                  document.documentElement.setAttribute(
+                    'data-theme',
+                    nextTheme,
+                  );
+                  localStorage.setItem('theme', nextTheme);
+                }}
               />
 
               {/* sun icon */}

@@ -355,28 +355,52 @@ export default function Players({ isServerRunning }: PlayersProps) {
           <span className="label-text font-medium">Player Access Control</span>
         </label>
         <div className="flex gap-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="restriction"
-              value="whitelist"
-              checked={restrictionMode === 'whitelist'}
-              onChange={() => setRestrictionMode('whitelist')}
-              className="radio radio-sm"
-            />
-            <span className="text-sm">Whitelist</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="restriction"
-              value="blacklist"
-              checked={restrictionMode === 'blacklist'}
-              onChange={() => setRestrictionMode('blacklist')}
-              className="radio radio-sm"
-            />
-            <span className="text-sm">Blacklist</span>
-          </label>
+          <div
+            className={
+              'tooltip' + (!isServerRunning ? ' tooltip-delay-1s' : '')
+            }
+            data-tip={
+              !isServerRunning
+                ? 'Whitelist mode only allows players on the whitelist to join.'
+                : 'Please stop the server to change these settings.'
+            }
+          >
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="restriction"
+                value="whitelist"
+                checked={restrictionMode === 'whitelist'}
+                onChange={() => setRestrictionMode('whitelist')}
+                className="radio radio-sm"
+                disabled={isServerRunning}
+              />
+              <span className="text-sm">Whitelist</span>
+            </label>
+          </div>
+          <div
+            className={
+              'tooltip' + (!isServerRunning ? ' tooltip-delay-1s' : '')
+            }
+            data-tip={
+              !isServerRunning
+                ? 'Blacklist mode allows anyone to join except players on the blacklist.'
+                : 'Please stop the server to change these settings.'
+            }
+          >
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="restriction"
+                value="blacklist"
+                checked={restrictionMode === 'blacklist'}
+                onChange={() => setRestrictionMode('blacklist')}
+                className="radio radio-sm"
+                disabled={isServerRunning}
+              />
+              <span className="text-sm">Blacklist</span>
+            </label>
+          </div>
         </div>
       </div>
 

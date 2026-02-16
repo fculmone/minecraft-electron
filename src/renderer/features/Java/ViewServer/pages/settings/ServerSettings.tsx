@@ -19,11 +19,16 @@ declare global {
   }
 }
 
-export default function ServerPropertiesPanel() {
+export default function ServerPropertiesPanel({
+  isServerRunning,
+}: {
+  isServerRunning: boolean;
+}) {
   const [server, setServer] = useState<McServer | null>(null);
   const [properties, setProperties] = useState<ServerProperties | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const navigate = useNavigate();
@@ -58,13 +63,15 @@ export default function ServerPropertiesPanel() {
       setSaving(true);
       const result = await window.mc.saveServerProperties(id, properties);
       if (result.ok) {
-        alert('Server properties saved successfully!');
+        // Not using alert anymore, parent will show toast/message
+        setShowSaved(true);
+        window.setTimeout(() => setShowSaved(false), 7000);
       } else {
-        alert('Failed to save server properties: ' + result.error);
+        alert(`Failed to save server properties: ${result.error}`);
       }
     } catch (error) {
       console.error('Error saving properties:', error);
-      alert('Error saving properties: ' + error);
+      alert(`Error saving properties: ${error}`);
     } finally {
       setSaving(false);
     }
@@ -104,7 +111,12 @@ export default function ServerPropertiesPanel() {
 
   return (
     <div className="w-full flex flex-col overflow-hidden">
-      <SettingsHeader onSave={handleSave} saving={saving} />
+      <SettingsHeader
+        onSave={handleSave}
+        saving={saving}
+        isServerRunning={isServerRunning}
+        showSaved={showSaved}
+      />
 
       {/* Tabs Navigation */}
       <div
