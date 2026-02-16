@@ -9,7 +9,6 @@ import Drawer from './components/Drawer';
 import Dashboard from './features/Dashboard/Dashboard';
 import TitleBar from './components/TitleBar';
 import ServerPropertiesPanel from './features/Java/ViewServer/ViewServer';
-import ToastContainer from './components/ToastContainer';
 
 function Hello() {
   return (
@@ -35,7 +34,6 @@ export default function App() {
   return (
     <Router>
       <div className="flex flex-col h-screen">
-        <ToastContainer />
         <TitleBar />
         <div className="flex flex-1 overflow-hidden">
           <Drawer>
