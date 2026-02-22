@@ -2,26 +2,38 @@
 /* eslint no-unused-vars: off */
 const { contextBridge, ipcRenderer } = require('electron');
 
-export type Channels = 'ipc-example';
+export type Channels = {
+  'java:show-toast': {
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+  };
+  'ipc-example': string[];
+};
 
 const electronHandler = {
   ipcRenderer: {
-    sendMessage(channel: Channels, ...args: unknown[]) {
-      ipcRenderer.send(channel, ...args);
+    sendMessage<K extends keyof Channels>(channel: K, payload: Channels[K]) {
+      ipcRenderer.send(channel, payload);
     },
-    on(
-      channel: Channels | 'java:show-toast',
-      func: (...args: unknown[]) => void,
+    on<K extends keyof Channels>(
+      channel: K,
+      func: (payload: Channels[K]) => void,
     ) {
-      const subscription = (_event: any, ...args: any[]) => func(...args);
+      const subscription = (_event: unknown, payload: Channels[K]) =>
+        func(payload);
       ipcRenderer.on(channel, subscription);
 
       return () => {
         ipcRenderer.removeListener(channel, subscription);
       };
     },
-    once(channel: Channels, func: (...args: unknown[]) => void) {
-      ipcRenderer.once(channel, (_event: any, ...args: any[]) => func(...args));
+    once<K extends keyof Channels>(
+      channel: K,
+      func: (payload: Channels[K]) => void,
+    ) {
+      ipcRenderer.once(channel, (_event: unknown, payload: Channels[K]) =>
+        func(payload),
+      );
     },
   },
   window: {

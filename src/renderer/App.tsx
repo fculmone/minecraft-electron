@@ -9,6 +9,8 @@ import Drawer from './components/Drawer';
 import Dashboard from './features/Dashboard/Dashboard';
 import TitleBar from './components/TitleBar';
 import ServerPropertiesPanel from './features/Java/ViewServer/ViewServer';
+import Toast from './components/Toast/Toast';
+import { toast, ToastMessage } from './components/Toast/toast.service';
 
 function Hello() {
   return (
@@ -23,7 +25,11 @@ function Hello() {
         This is a test of Tailwind CSS and DaisyUI integration.
       </div>
       <button className="btn">Hello daisyUI</button>
-      <button type="button" className="btn btn-primary">
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => toast.show('This is a test toast!', 'success')}
+      >
         Show Test Toast
       </button>
     </div>
@@ -31,8 +37,22 @@ function Hello() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const removeListener = window.electron.ipcRenderer.on(
+      'java:show-toast',
+      (data: Omit<ToastMessage, 'id'>) => {
+        toast.show(data.message, data.type);
+      },
+    );
+
+    return () => {
+      removeListener();
+    };
+  }, []);
+
   return (
     <Router>
+      <Toast />
       <div className="flex flex-col h-screen">
         <TitleBar />
         <div className="flex flex-1 overflow-hidden">
@@ -40,7 +60,7 @@ export default function App() {
             <div className="h-full overflow-y-auto flex-1">
               <main className="container mx-auto p-4 pt-12 flex-1 h-full max-h-screen">
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/" element={<Hello />} />
                   <Route path="/logs" element={<Logs />} />
                   <Route path="/java" element={<ServersView />} />
                   <Route path="/bedrock" element={<BedrockServerView />} />

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import JavaServerTable, { JavaServerTableRef } from './JavaServerTable';
 import { MinecraftServerAPI } from '../../../preload';
 
