@@ -9,6 +9,7 @@ import Drawer from './components/Drawer';
 import Dashboard from './features/Dashboard/Dashboard';
 import TitleBar from './components/TitleBar';
 import ServerPropertiesPanel from './features/Java/ViewServer/ViewServer';
+import BedrockViewServer from './features/Bedrock/ViewServer/BedrockViewServer';
 import Toast from './components/Toast/Toast';
 import { toast, ToastMessage } from './components/Toast/toast.service';
 
@@ -67,6 +68,10 @@ export default function App() {
                   <Route
                     path="/java/edit/:id"
                     element={<ServerPropertiesPanel />}
+                  />
+                  <Route
+                    path="/bedrock/edit/:id"
+                    element={<BedrockViewServer />}
                   />
                 </Routes>
               </main>

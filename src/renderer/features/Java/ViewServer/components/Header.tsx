@@ -7,6 +7,7 @@ interface HeaderProps {
   isRenaming: boolean;
   newName: string;
   renameSaving: boolean;
+  serverStatus: 'starting' | 'ready' | 'running' | 'stopped' | 'error';
   onStartRename: () => void;
   onCancelRename: () => void;
   onSaveRename: () => void;
@@ -19,6 +20,7 @@ export default function Header({
   isRenaming,
   newName,
   renameSaving,
+  serverStatus,
   onStartRename,
   onCancelRename,
   onSaveRename,
@@ -26,6 +28,15 @@ export default function Header({
   onRenameKeyDown,
 }: HeaderProps) {
   const navigate = useNavigate();
+
+  const statusClass =
+    serverStatus === 'error'
+      ? 'badge-error'
+      : serverStatus === 'ready' || serverStatus === 'running'
+        ? 'badge-success bg-opacity-30'
+        : serverStatus === 'starting'
+          ? 'badge-warning'
+          : 'badge-ghost';
 
   return (
     <div className="flex-shrink-0 bg-base-100 border-b border-base-300 p-4 rounded-lg">
@@ -86,6 +97,12 @@ export default function Header({
             </div>
           )}
           <p className="text-sm opacity-70">{server?.version}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className={`badge ${statusClass} min-w-20`}>
+            {serverStatus}
+          </span>
         </div>
       </div>
     </div>

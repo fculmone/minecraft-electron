@@ -1,10 +1,10 @@
-import { MinecraftServerAPI } from '@renderer/preload';
+import { BedrockServerAPI } from '@renderer/preload';
 import ServerConsole from '@renderer/features/shared/ServerConsole';
 import { useParams } from 'react-router-dom';
 
 declare global {
   interface Window {
-    mc: MinecraftServerAPI;
+    bedrock: BedrockServerAPI;
   }
 }
 
@@ -14,13 +14,15 @@ interface ConsoleProps {
 
 export default function Console({ isServerRunning }: ConsoleProps) {
   const { id } = useParams<{ id: string }>();
+
   return (
     <ServerConsole
       serverId={id}
       isServerRunning={isServerRunning}
-      onLog={window.mc.onLog}
-      executeCommand={window.mc.cmd}
-      storageNamespace="console-logs"
+      onLog={window.bedrock.onLog}
+      executeCommand={window.bedrock.cmd}
+      storageNamespace="bedrock-console-logs"
+      commandPlaceholder="Enter Bedrock command... (e.g., 'list')"
     />
   );
 }

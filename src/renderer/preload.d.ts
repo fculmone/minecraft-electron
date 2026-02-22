@@ -15,6 +15,7 @@ export type BedrockServer = {
 export type MinecraftServerAPI = {
   importServers: () => Promise<any[]>;
   listServers: () => Promise<any[]>;
+  removeServer: (id: string) => Promise<void>;
   editServer: (id: string, updates: any) => Promise<boolean>;
   getServer: (id: string) => Promise<any>;
   getServerProperties: (id: string) => Promise<ServerProperties>;
@@ -81,12 +82,20 @@ export type MinecraftServerAPI = {
 export type BedrockServerAPI = {
   importServers: () => Promise<BedrockServer[]>;
   listServers: () => Promise<BedrockServer[]>;
+  editServer: (id: string, updates: Partial<BedrockServer>) => Promise<boolean>;
+  getServer: (id: string) => Promise<BedrockServer>;
+  getServerProperties: (id: string) => Promise<Record<string, string>>;
+  saveServerProperties: (
+    id: string,
+    properties: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; error?: string }>;
   start: (
     id: string,
     opts?: { port?: number; portV6?: number },
   ) => Promise<{ ok: boolean; pid?: number; error?: string }>;
   cmd: (id: string, cmd: string) => Promise<{ ok: boolean }>;
   stop: (id: string) => Promise<{ ok: boolean }>;
+  getRunningStatus: () => Promise<Record<string, boolean>>;
   onLog: (
     cb: (d: { id: string; line: string; stream: 'stdout' | 'stderr' }) => void,
   ) => void;

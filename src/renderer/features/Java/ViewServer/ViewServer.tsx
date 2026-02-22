@@ -25,6 +25,9 @@ export default function ViewServer() {
   const [newName, setNewName] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
   const [isServerRunning, setIsServerRunning] = useState(false);
+  const [serverStatus, setServerStatus] = useState<
+    'starting' | 'ready' | 'running' | 'stopped' | 'error'
+  >('stopped');
   const { id } = useParams<{ id: string }>();
 
   useEffect(() => {
@@ -40,7 +43,9 @@ export default function ViewServer() {
         ]);
         setServer(serverData);
         setProperties(propsData);
-        setIsServerRunning(runningStatus[id] ?? false);
+        const isRunning = runningStatus[id] ?? false;
+        setIsServerRunning(isRunning);
+        setServerStatus(isRunning ? 'running' : 'stopped');
       } catch (error) {
         console.error('Error loading server data:', error);
       } finally {
@@ -59,7 +64,10 @@ export default function ViewServer() {
       message?: string;
     }) => {
       if (data.id === id) {
-        setIsServerRunning(data.status === 'ready');
+        setServerStatus(data.status);
+        setIsServerRunning(
+          data.status === 'starting' || data.status === 'ready',
+        );
       }
     };
 
@@ -118,6 +126,7 @@ export default function ViewServer() {
         onSaveRename={handleSaveRename}
         onNewNameChange={setNewName}
         onRenameKeyDown={handleRenameKeyDown}
+        serverStatus={serverStatus}
       />
 
       {/* Tab buttons */}

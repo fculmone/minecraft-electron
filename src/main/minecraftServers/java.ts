@@ -404,6 +404,20 @@ ipcMain.handle('java:removeFolder', async (_e, { id }: { id: string }) => {
   const list = await loadIndex();
   const srv = list.find((s) => s.id === id);
   if (!srv) throw new Error('Not found');
+
+  const proc = running.get(id);
+  if (proc && proc.exitCode === null) {
+    throw new Error('Stop the server before deleting it');
+  }
+
+  const timer = backupTimers.get(id);
+  if (timer) {
+    clearInterval(timer);
+    backupTimers.delete(id);
+  }
+
+  running.delete(id);
+
   await fs.rm(srv.dir, { recursive: true, force: true });
   list.splice(list.indexOf(srv), 1);
   await saveIndex(list);

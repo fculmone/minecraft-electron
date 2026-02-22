@@ -29,8 +29,8 @@ export default function ServerPropertiesPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState(0);
+  const [deletingServer, setDeletingServer] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -84,9 +84,37 @@ export default function ServerPropertiesPanel({
     });
   };
 
-  const filteredProperties = Object.entries(properties ?? {}).filter(([key]) =>
-    key.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const handleDeleteServer = async () => {
+    if (!id || !server || deletingServer) return;
+    if (isServerRunning) {
+      alert('Stop the server before deleting it.');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Delete server "${server.name}"?\n\nThis permanently removes the server and all data, including worlds and backups.`,
+    );
+    if (!confirmed) return;
+
+    const typedName = prompt(
+      `Type the server name to confirm deletion:\n\n${server.name}`,
+    );
+    if (typedName !== server.name) {
+      alert('Server name did not match. Delete canceled.');
+      return;
+    }
+
+    try {
+      setDeletingServer(true);
+      await window.mc.removeServer(id);
+      navigate('/java');
+    } catch (error: any) {
+      console.error('Error deleting server:', error);
+      alert(`Failed to delete server: ${error?.message || error}`);
+    } finally {
+      setDeletingServer(false);
+    }
+  };
 
   if (loading || !properties) {
     return (
@@ -148,6 +176,31 @@ export default function ServerPropertiesPanel({
           properties={properties}
           onPropertyChange={handlePropertyChange}
         />
+
+        <div className="mt-6 p-4 rounded-lg border border-error/40 bg-base-200">
+          <h3 className="text-lg font-semibold text-error">Danger Zone</h3>
+          <p className="text-sm opacity-80 mt-1 mb-3">
+            Deleting a server is permanent and removes all files for this
+            server, including worlds and backups.
+          </p>
+          <button
+            type="button"
+            className="btn btn-error"
+            onClick={handleDeleteServer}
+            disabled={deletingServer || isServerRunning}
+            title={
+              isServerRunning
+                ? 'Stop the server before deleting it'
+                : 'Delete this server permanently'
+            }
+          >
+            {deletingServer ? (
+              <span className="loading loading-spinner loading-sm" />
+            ) : (
+              'Delete Server'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Properties Grid

@@ -14,7 +14,7 @@ export default function Drawer({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') ?? 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    setIsNight(savedTheme === 'night');
+    setIsNight(savedTheme === 'dim');
   }, []);
 
   const closeDrawer = () => {
@@ -153,10 +153,10 @@ export default function Drawer({ children }: { children?: React.ReactNode }) {
               <input
                 type="checkbox"
                 className="theme-controller"
-                value="night"
+                value="dim"
                 checked={isNight}
                 onChange={(event) => {
-                  const nextTheme = event.target.checked ? 'night' : 'light';
+                  const nextTheme = event.target.checked ? 'dim' : 'light';
                   setIsNight(event.target.checked);
                   document.documentElement.setAttribute(
                     'data-theme',

@@ -65,6 +65,7 @@ const exeHandler = {
 const mcHandler = {
   importServers: () => ipcRenderer.invoke('java:import'),
   listServers: () => ipcRenderer.invoke('java:list'),
+  removeServer: (id: string) => ipcRenderer.invoke('java:removeFolder', { id }),
   editServer: (id: string, updates: any) =>
     ipcRenderer.invoke('java:edit', { id, updates }),
   getServer: (id: string) => ipcRenderer.invoke('java:get', { id }),
@@ -171,6 +172,13 @@ const mcHandler = {
 const bedrockHandler = {
   importServers: () => ipcRenderer.invoke('bedrock:import'),
   listServers: () => ipcRenderer.invoke('bedrock:list'),
+  editServer: (id: string, updates: any) =>
+    ipcRenderer.invoke('bedrock:edit', { id, updates }),
+  getServer: (id: string) => ipcRenderer.invoke('bedrock:get', { id }),
+  getServerProperties: (id: string) =>
+    ipcRenderer.invoke('bedrock:getServerProperties', { id }),
+  saveServerProperties: (id: string, properties: Record<string, any>) =>
+    ipcRenderer.invoke('bedrock:saveServerProperties', { id, properties }),
   start: (
     id: string,
     opts?: {
@@ -181,6 +189,7 @@ const bedrockHandler = {
   cmd: (id: string, cmd: string) =>
     ipcRenderer.invoke('bedrock:cmd', { id, cmd }),
   stop: (id: string) => ipcRenderer.invoke('bedrock:stop', { id }),
+  getRunningStatus: () => ipcRenderer.invoke('bedrock:getRunningStatus'),
   onLog: (
     cb: (d: { id: string; line: string; stream: 'stdout' | 'stderr' }) => void,
   ) =>
