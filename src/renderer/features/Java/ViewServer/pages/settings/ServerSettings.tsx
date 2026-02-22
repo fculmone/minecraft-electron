@@ -125,17 +125,15 @@ export default function ServerPropertiesPanel({
   }
 
   const tabs = [
-    { label: 'Core', component: Core },
-    { label: 'World', component: World },
-    { label: 'Performance', component: Performance },
-    { label: 'Security', component: Security },
-    { label: 'Comms', component: Comms },
-    { label: 'Resources', component: Resources },
-    { label: 'Admin', component: Admin },
-    { label: 'Misc', component: Misc },
+    { label: 'Core' },
+    { label: 'World' },
+    { label: 'Performance' },
+    { label: 'Security' },
+    { label: 'Comms' },
+    { label: 'Resources' },
+    { label: 'Admin' },
+    { label: 'Misc' },
   ];
-
-  const ActiveComponent = tabs[activeTab].component;
 
   return (
     <div className="w-full flex flex-col overflow-hidden">
@@ -172,35 +170,50 @@ export default function ServerPropertiesPanel({
 
       {/* Tab Content Area */}
       <div className="flex-1 overflow-auto bg-base-100 p-6 w-full">
-        <ActiveComponent
-          properties={properties}
-          onPropertyChange={handlePropertyChange}
-        />
-
-        <div className="mt-6 p-4 rounded-lg border border-error/40 bg-base-200">
-          <h3 className="text-lg font-semibold text-error">Danger Zone</h3>
-          <p className="text-sm opacity-80 mt-1 mb-3">
-            Deleting a server is permanent and removes all files for this
-            server, including worlds and backups.
-          </p>
-          <button
-            type="button"
-            className="btn btn-error"
-            onClick={handleDeleteServer}
-            disabled={deletingServer || isServerRunning}
-            title={
-              isServerRunning
-                ? 'Stop the server before deleting it'
-                : 'Delete this server permanently'
-            }
-          >
-            {deletingServer ? (
-              <span className="loading loading-spinner loading-sm" />
-            ) : (
-              'Delete Server'
-            )}
-          </button>
-        </div>
+        {activeTab === 0 ? (
+          <Core
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+            onDeleteServer={handleDeleteServer}
+            deletingServer={deletingServer}
+            isServerRunning={isServerRunning}
+          />
+        ) : activeTab === 1 ? (
+          <World
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : activeTab === 2 ? (
+          <Performance
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : activeTab === 3 ? (
+          <Security
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : activeTab === 4 ? (
+          <Comms
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : activeTab === 5 ? (
+          <Resources
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : activeTab === 6 ? (
+          <Admin
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        ) : (
+          <Misc
+            properties={properties}
+            onPropertyChange={handlePropertyChange}
+          />
+        )}
       </div>
 
       {/* Properties Grid
