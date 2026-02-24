@@ -11,6 +11,7 @@ import Resources from './pages/Resources';
 import Admin from './pages/Admin';
 import Misc from './pages/Misc';
 import SettingsHeader from './components/SettingsHeader';
+import { toast } from '../../../../../components/Toast/toast.service';
 import type { ServerProperties } from '@main/minecraftServers/javaTypes';
 
 declare global {
@@ -84,29 +85,21 @@ export default function ServerPropertiesPanel({
     });
   };
 
-  const handleDeleteServer = async () => {
+  const handleDeleteServer = async (typedName: string) => {
     if (!id || !server || deletingServer) return;
     if (isServerRunning) {
       alert('Stop the server before deleting it.');
       return;
     }
 
-    const confirmed = confirm(
-      `Delete server "${server.name}"?\n\nThis permanently removes the server and all data, including worlds and backups.`,
-    );
-    if (!confirmed) return;
-
-    const typedName = prompt(
-      `Type the server name to confirm deletion:\n\n${server.name}`,
-    );
-    if (typedName !== server.name) {
-      alert('Server name did not match. Delete canceled.');
+    if (typedName.trim() !== server.name) {
       return;
     }
 
     try {
       setDeletingServer(true);
       await window.mc.removeServer(id);
+      toast.show('Server deleted successfully', 'success');
       navigate('/java');
     } catch (error: any) {
       console.error('Error deleting server:', error);
@@ -174,6 +167,7 @@ export default function ServerPropertiesPanel({
           <Core
             properties={properties}
             onPropertyChange={handlePropertyChange}
+            serverName={server?.name || ''}
             onDeleteServer={handleDeleteServer}
             deletingServer={deletingServer}
             isServerRunning={isServerRunning}
